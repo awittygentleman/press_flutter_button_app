@@ -1,16 +1,35 @@
-# press_me_app
+# press_me_app 
 
-A new Flutter project.
+A simple Flutter app connected to **Firebase Realtime Database**.
 
-## Getting Started
+The app has one button.
+Every time you press it:
+- the counter increases
+- the value is saved instantly in Firebase
+- all users see the updated value in real time
 
-This project is a starting point for a Flutter application.
+Perfect as a first **Flutter + Firebase** project.
 
-A few resources to get you started if this is your first Flutter project:
+---
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+## Tech Stack
+- Flutter
+- Firebase Realtime Database
+- Android (tested on emulator)
+- Web (Chrome)
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+---
+
+## Features
+- Realtime counter synced with Firebase
+- Clean and minimal UI
+- Hot reload supported
+- Cross-platform (Android / Web / Desktop-ready)
+
+---
+
+## How to run
+
+```bash
+flutter pub get
+flutter run
