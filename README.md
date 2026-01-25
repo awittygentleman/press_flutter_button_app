@@ -74,12 +74,4 @@ python main.py
 
 ---
 
-## 🚀 Future Roadmap
-
-* [ ] Standalone `.exe` packaging for the Python app.
-* [ ] Firebase Auth integration for private counters.
-* [ ] Web dashboard for global statistics.
-
----
-
 **Author:** [awittygentleman](https://www.google.com/search?q=https://github.com/awittygentleman)
