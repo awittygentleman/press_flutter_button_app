@@ -54,3 +54,23 @@ android/local.properties
 # Windows Flutter ephemeral files
 windows/flutter/ephemeral/
 
+# Firebase secrets for desktop apps
+python_app_desktop\press-me-app-desktop-firebase-key.json
+
+# Add to .gitignore
+build/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
