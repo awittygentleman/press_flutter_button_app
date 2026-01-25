@@ -55,7 +55,7 @@ android/local.properties
 windows/flutter/ephemeral/
 
 # Firebase secrets for desktop apps
-python_app_desktop\press-me-app-desktop-firebase-key.json
+python_app_desktop/firebase-admin-key.json
 
 # Add to .gitignore
 build/

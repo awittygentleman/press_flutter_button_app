@@ -10,7 +10,7 @@ import os
 
 
 # Initialize Firebase
-cred = credentials.Certificate('C:\\Users\\Safouan\\press_me_app\\python_app_desktop\\firebase-admin-key.json.json')
+cred = credentials.Certificate('C:\\Users\\Safouan\\press_me_app\\python_app_desktop\\firebase-admin-key.json')
 firebase_admin.initialize_app(cred, {
     'databaseURL': 'https://press-me-app-4f057-default-rtdb.firebaseio.com/'
 })
