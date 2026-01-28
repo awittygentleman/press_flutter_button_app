@@ -84,3 +84,6 @@ if __name__ == '__main__':
     window = LikesApp()
     window.show()
     sys.exit(app.exec_())
+
+
+    
