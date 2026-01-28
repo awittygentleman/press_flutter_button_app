@@ -35,7 +35,6 @@ class _NameScreenState extends State<NameScreen> {
         MaterialPageRoute(builder: (_) => const HomePage()),
       );
     } catch (e) {
-      print('Error: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: $e')),

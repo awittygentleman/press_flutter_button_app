@@ -18,8 +18,13 @@ class FirebaseService {
 
   /// Sign in anonymously
   Future<void> signInAnonymously() async {
-    if (FirebaseAuth.instance.currentUser == null) {
-      await FirebaseAuth.instance.signInAnonymously();
+    try {
+      if (FirebaseAuth.instance.currentUser == null) {
+        await FirebaseAuth.instance.signInAnonymously();
+      }
+    } catch (e) {
+      // Silent fail - continue anyway
+      rethrow;
     }
   }
 
@@ -49,8 +54,12 @@ class FirebaseService {
     final uid = currentUserUid;
 
     // 1. Update Firebase Auth display name
-    await FirebaseAuth.instance.currentUser!.updateDisplayName(name);
-    await FirebaseAuth.instance.currentUser!.reload();
+    try {
+      await FirebaseAuth.instance.currentUser!.updateDisplayName(name);
+      await FirebaseAuth.instance.currentUser!.reload();
+    } catch (authError) {
+      // Continue even if auth fails - we'll save to database
+    }
 
     // 2. Save to local storage
     final prefs = await SharedPreferences.getInstance();
@@ -107,10 +116,20 @@ class FirebaseService {
         .ref('users/$uid/likes')
         .onValue
         .map((event) {
-      if (event.snapshot.exists) {
-        return (event.snapshot.value as int?) ?? 0;
+      try {
+        if (event.snapshot.exists) {
+          final value = event.snapshot.value;
+          if (value is int) {
+            return value;
+          } else if (value is double) {
+            return value.toInt();
+          }
+          return 0;
+        }
+        return 0;
+      } catch (e) {
+        return 0;
       }
-      return 0;
     });
   }
 
@@ -120,10 +139,20 @@ class FirebaseService {
         .ref('totalLikes')
         .onValue
         .map((event) {
-      if (event.snapshot.exists) {
-        return (event.snapshot.value as int?) ?? 0;
+      try {
+        if (event.snapshot.exists) {
+          final value = event.snapshot.value;
+          if (value is int) {
+            return value;
+          } else if (value is double) {
+            return value.toInt();
+          }
+          return 0;
+        }
+        return 0;
+      } catch (e) {
+        return 0;
       }
-      return 0;
     });
   }
 }

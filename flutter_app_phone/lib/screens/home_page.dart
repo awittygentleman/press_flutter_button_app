@@ -21,14 +21,22 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    _init();
+    _loadUserName();
+    _setupListeners();
   }
 
-  Future<void> _init() async {
-    // Get user name
-    _userName = await _firebaseService.getUserName();
+  // Load user name WITHOUT setState in async gap
+  Future<void> _loadUserName() async {
+    final userName = await _firebaseService.getUserName();
+    if (mounted) {
+      setState(() {
+        _userName = userName;
+      });
+    }
+  }
 
-    // Listen to real-time updates
+  // Setup listeners AFTER loading
+  void _setupListeners() {
     _firebaseService.getUserLikesStream().listen((likes) {
       if (mounted) {
         setState(() => _userLikes = likes);
@@ -40,24 +48,25 @@ class _HomePageState extends State<HomePage> {
         setState(() => _totalLikes = likes);
       }
     });
-
-    setState(() {});
   }
 
   Future<void> _addLike() async {
     try {
       await _firebaseService.addUserLike(_userLikes);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$e')),
+        );
+      }
     }
   }
 
   Future<void> _mute() async {
     try {
       await platform.invokeMethod('muteAudio');
-      setState(() => _muted = true);
-
       if (mounted) {
+        setState(() => _muted = true);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('🔇 Muted'),
@@ -77,9 +86,8 @@ class _HomePageState extends State<HomePage> {
   Future<void> _unmute() async {
     try {
       await platform.invokeMethod('unmuteAudio');
-      setState(() => _muted = false);
-
       if (mounted) {
+        setState(() => _muted = false);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('🔊 Unmuted'),

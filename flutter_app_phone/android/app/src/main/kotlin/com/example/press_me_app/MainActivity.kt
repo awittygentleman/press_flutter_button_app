@@ -11,7 +11,7 @@ class MainActivity: FlutterActivity() {
     private var savedMusicVolume = 0
     private var savedNotificationVolume = 0
     private var savedAlarmVolume = 0
-    private var savedRingVolume = 0  // Add this
+    private var savedRingVolume = 0
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -46,15 +46,15 @@ class MainActivity: FlutterActivity() {
         savedMusicVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
         savedNotificationVolume = audioManager.getStreamVolume(AudioManager.STREAM_NOTIFICATION)
         savedAlarmVolume = audioManager.getStreamVolume(AudioManager.STREAM_ALARM)
-        savedRingVolume = audioManager.getStreamVolume(AudioManager.STREAM_RING)  // Add this
+        savedRingVolume = audioManager.getStreamVolume(AudioManager.STREAM_RING)
         
         println("MUTE - Saved volumes: Music=$savedMusicVolume, Notification=$savedNotificationVolume, Alarm=$savedAlarmVolume, Ring=$savedRingVolume")
         
-        // Mute ALL streams to 0
+        // Mute ALL streams to 0 (no ringer mode change - avoids permission issues)
         audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, 0, 0)
         audioManager.setStreamVolume(AudioManager.STREAM_NOTIFICATION, 0, 0)
         audioManager.setStreamVolume(AudioManager.STREAM_ALARM, 0, 0)
-        audioManager.setStreamVolume(AudioManager.STREAM_RING, 0, 0)  // Add this
+        audioManager.setStreamVolume(AudioManager.STREAM_RING, 0, 0)
     }
 
     private fun unmuteDevice() {
@@ -66,6 +66,6 @@ class MainActivity: FlutterActivity() {
         audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, savedMusicVolume, 0)
         audioManager.setStreamVolume(AudioManager.STREAM_NOTIFICATION, savedNotificationVolume, 0)
         audioManager.setStreamVolume(AudioManager.STREAM_ALARM, savedAlarmVolume, 0)
-        audioManager.setStreamVolume(AudioManager.STREAM_RING, savedRingVolume, 0)  // Add this
+        audioManager.setStreamVolume(AudioManager.STREAM_RING, savedRingVolume, 0)
     }
 }
