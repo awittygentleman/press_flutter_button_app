@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/firebase_service.dart';
+import 'package:permission_handler/permission_handler.dart';  // Add this!
+
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -62,47 +64,80 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  Future<void> _mute() async {
-    try {
-      await platform.invokeMethod('muteAudio');
-      if (mounted) {
-        setState(() => _muted = true);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('🔇 Muted'),
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
-    } on PlatformException catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Mute error: ${e.message}')),
-        );
-      }
-    }
-  }
 
-  Future<void> _unmute() async {
-    try {
-      await platform.invokeMethod('unmuteAudio');
+Future<void> _mute() async {
+  try {
+    // Request permission first
+    final status = await Permission.accessNotificationPolicy.request();
+    
+    if (!status.isGranted) {
       if (mounted) {
-        setState(() => _muted = false);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('🔊 Unmuted'),
-            duration: Duration(seconds: 2),
+            content: Text('⚠️ Permission denied. Please enable in Settings'),
+            duration: Duration(seconds: 3),
           ),
         );
       }
-    } on PlatformException catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Unmute error: ${e.message}')),
-        );
-      }
+      return;
+    }
+
+    // Now mute
+    await platform.invokeMethod('muteAudio');
+    if (mounted) {
+      setState(() => _muted = true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('🔇 Muted'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  } on PlatformException catch (e) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Mute error: ${e.message}')),
+      );
     }
   }
+}
+
+Future<void> _unmute() async {
+  try {
+    // Request permission first
+    final status = await Permission.accessNotificationPolicy.request();
+    
+    if (!status.isGranted) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('⚠️ Permission denied. Please enable in Settings'),
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+      return;
+    }
+
+    // Now unmute
+    await platform.invokeMethod('unmuteAudio');
+    if (mounted) {
+      setState(() => _muted = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('🔊 Unmuted'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  } on PlatformException catch (e) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unmute error: ${e.message}')),
+      );
+    }
+  }
+}
 
   @override
   Widget build(BuildContext context) {

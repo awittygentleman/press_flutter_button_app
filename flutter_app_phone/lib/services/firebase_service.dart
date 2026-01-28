@@ -16,18 +16,19 @@ class FirebaseService {
   // 🔐 AUTHENTICATION METHODS
   // ============================================
 
-  /// Sign in anonymously
-  Future<void> signInAnonymously() async {
-    try {
-      if (FirebaseAuth.instance.currentUser == null) {
-        await FirebaseAuth.instance.signInAnonymously();
-      }
-    } catch (e) {
-      // Silent fail - continue anyway
-      rethrow;
+  /// Sign in anonymously with error handling
+Future<void> signInAnonymously() async {
+  try {
+    if (FirebaseAuth.instance.currentUser == null) {
+      await FirebaseAuth.instance.signInAnonymously();
     }
+    // Force reload to clear any corrupted data
+    await FirebaseAuth.instance.currentUser?.reload();
+  } catch (e) {
+    // Log but don't crash
+    // Silent fail - try again on next access
   }
-
+}
   /// Get current user UID
   String get currentUserUid {
     return FirebaseAuth.instance.currentUser!.uid;
