@@ -18,48 +18,60 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return const MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: AuthCheck(),
+      home: SplashScreen(),
     );
   }
 }
 
-// 🔐 Check if user is logged in and has a name
-class AuthCheck extends StatefulWidget {
-  const AuthCheck({super.key});
+// Splash/Auth Check Screen
+class SplashScreen extends StatefulWidget {
+  const SplashScreen({super.key});
 
   @override
-  State<AuthCheck> createState() => _AuthCheckState();
+  State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _AuthCheckState extends State<AuthCheck> {
+class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    _checkUserStatus();
+    _checkAuth();
   }
 
-  Future<void> _checkUserStatus() async {
-    // Sign in anonymously if not already
-    if (FirebaseAuth.instance.currentUser == null) {
-      await FirebaseAuth.instance.signInAnonymously();
-    }
+  Future<void> _checkAuth() async {
+    await Future.delayed(const Duration(seconds: 1));
 
-    // Check if user has a stored name
-    final prefs = await SharedPreferences.getInstance();
-    final userName = prefs.getString('userName');
+    try {
+      // Sign in anonymously if needed
+      if (FirebaseAuth.instance.currentUser == null) {
+        await FirebaseAuth.instance.signInAnonymously();
+      }
 
-    if (!mounted) return;
+      // Check shared preferences for name
+      final prefs = await SharedPreferences.getInstance();
+      final userName = prefs.getString('userName');
 
-    if (userName == null) {
-      // First time - ask for name
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const NameInputScreen()),
-      );
-    } else {
-      // Already has name - go to main app
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const LikePage()),
-      );
+      if (!mounted) return;
+
+      if (userName == null) {
+        // Go to name input
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const NameScreen()),
+        );
+      } else {
+        // Go to main app
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const HomePage()),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
     }
   }
 
@@ -73,104 +85,102 @@ class _AuthCheckState extends State<AuthCheck> {
   }
 }
 
-// 📝 Screen to ask for user's name (ONLY FIRST TIME)
-class NameInputScreen extends StatefulWidget {
-  const NameInputScreen({super.key});
+// Name Input Screen
+class NameScreen extends StatefulWidget {
+  const NameScreen({super.key});
 
   @override
-  State<NameInputScreen> createState() => _NameInputScreenState();
+  State<NameScreen> createState() => _NameScreenState();
 }
 
-class _NameInputScreenState extends State<NameInputScreen> {
-  final TextEditingController _nameController = TextEditingController();
-  bool _isLoading = false;
+class _NameScreenState extends State<NameScreen> {
+  final _controller = TextEditingController();
+  bool _loading = false;
 
-  Future<void> _saveName() async {
-    if (_nameController.text.trim().isEmpty) {
+  Future<void> _submit() async {
+  if (_controller.text.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Please enter your name')),
+    );
+    return;
+  }
+
+  setState(() => _loading = true);
+
+  try {
+    final name = _controller.text.trim();
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+
+    // 1. Update Firebase Auth display name FIRST
+    await FirebaseAuth.instance.currentUser!.updateDisplayName(name);
+
+    // 2. Reload to ensure it's saved
+    await FirebaseAuth.instance.currentUser!.reload();
+
+    // 3. Save to local storage
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('userName', name);
+
+    // 4. Save to database
+    await FirebaseDatabase.instance.ref('users/$uid').set({
+      'name': name,
+      'likes': 0,
+      'createdAt': DateTime.now().millisecondsSinceEpoch,
+    });
+
+    // 5. Initialize total likes
+    final totalRef = FirebaseDatabase.instance.ref('totalLikes');
+    final snapshot = await totalRef.get();
+    if (!snapshot.exists) {
+      await totalRef.set(0);
+    }
+
+    if (!mounted) return;
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const HomePage()),
+    );
+  } catch (e) {
+    print('Error: $e');
+    if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter your name!')),
+        SnackBar(content: Text('Error: $e')),
       );
-      return;
     }
-
-    setState(() => _isLoading = true);
-
-    try {
-      // Get current user UID
-      final uid = FirebaseAuth.instance.currentUser!.uid;
-      final name = _nameController.text.trim();
-
-      // Save name to shared preferences (local)
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('userName', name);
-
-      // Save user profile to Firebase
-      await FirebaseDatabase.instance.ref('users/$uid/profile').set({
-        'name': name,
-        'likes': 0,
-        'createdAt': DateTime.now().millisecondsSinceEpoch,
-      });
-
-      // Also initialize totalLikes if it doesn't exist
-      final totalRef = FirebaseDatabase.instance.ref('totalLikes');
-      final snapshot = await totalRef.get();
-      if (!snapshot.exists) {
-        await totalRef.set(0);
-      }
-
-      if (!mounted) return;
-
-      // Go to main app
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const LikePage()),
-      );
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
+  } finally {
+    if (mounted) setState(() => _loading = false);
   }
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    super.dispose();
-  }
+}
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Welcome! 👋")),
+      appBar: AppBar(title: const Text('Welcome')),
       body: Center(
         child: Padding(
-          padding: const EdgeInsets.all(20.0),
+          padding: const EdgeInsets.all(20),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Text(
-                "What's your name?",
+                'What\'s your name?',
                 style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 30),
               TextField(
-                controller: _nameController,
+                controller: _controller,
                 decoration: InputDecoration(
-                  hintText: 'Enter your name',
+                  hintText: 'Enter name',
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  prefixIcon: const Icon(Icons.person),
                 ),
-                enabled: !_isLoading,
               ),
               const SizedBox(height: 20),
               ElevatedButton(
-                onPressed: _isLoading ? null : _saveName,
-                child: _isLoading
+                onPressed: _loading ? null : _submit,
+                child: _loading
                     ? const SizedBox(
                         height: 20,
                         width: 20,
@@ -186,242 +196,207 @@ class _NameInputScreenState extends State<NameInputScreen> {
   }
 }
 
-// 🏠 Main App Screen
-class LikePage extends StatefulWidget {
-  const LikePage({super.key});
+// Main Home Screen
+class HomePage extends StatefulWidget {
+  const HomePage({super.key});
 
   @override
-  State<LikePage> createState() => _LikePageState();
+  State<HomePage> createState() => _HomePageState();
 }
 
-class _LikePageState extends State<LikePage> {
+class _HomePageState extends State<HomePage> {
   static const platform = MethodChannel('com.example.press_me_app/audio');
 
   late String _uid;
-  late String _userName;
+  String _userName = 'User';
   int _userLikes = 0;
   int _totalLikes = 0;
-  bool _isMuted = false;
+  bool _muted = false;
 
   @override
   void initState() {
     super.initState();
-    _initializeUser();
+    _init();
   }
 
-  Future<void> _initializeUser() async {
-    // Get UID
+  Future<void> _init() async {
     _uid = FirebaseAuth.instance.currentUser!.uid;
 
-    // Get name from shared preferences
     final prefs = await SharedPreferences.getInstance();
     _userName = prefs.getString('userName') ?? 'User';
 
-    // Listen to user's likes
-    FirebaseDatabase.instance.ref('users/$_uid/profile/likes').onValue.listen(
-      (event) {
-        if (mounted) {
-          setState(() {
-            _userLikes = (event.snapshot.value as int?) ?? 0;
-          });
-        }
-      },
-    );
+    // Listen to user likes
+    FirebaseDatabase.instance.ref('users/$_uid/likes').onValue.listen((e) {
+      if (mounted && e.snapshot.exists) {
+        setState(() => _userLikes = (e.snapshot.value as int?) ?? 0);
+      }
+    });
 
     // Listen to total likes
-    FirebaseDatabase.instance.ref('totalLikes').onValue.listen(
-      (event) {
-        if (mounted) {
-          setState(() {
-            _totalLikes = (event.snapshot.value as int?) ?? 0;
-          });
-        }
-      },
-    );
+    FirebaseDatabase.instance.ref('totalLikes').onValue.listen((e) {
+      if (mounted && e.snapshot.exists) {
+        setState(() => _totalLikes = (e.snapshot.value as int?) ?? 0);
+      }
+    });
   }
 
-  Future<void> _incrementLikes() async {
+  Future<void> _addLike() async {
     try {
-      // Increment user's likes
       await FirebaseDatabase.instance
-          .ref('users/$_uid/profile/likes')
+          .ref('users/$_uid/likes')
           .set(_userLikes + 1);
 
-      // Increment total likes
       await FirebaseDatabase.instance
           .ref('totalLikes')
           .set(_totalLikes + 1);
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
     }
   }
 
-  // Mute all sounds
-  Future<void> _muteDevice() async {
-    try {
-      await platform.invokeMethod('muteAudio');
-      setState(() => _isMuted = true);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('🔇 Device Muted'),
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
-    } on PlatformException catch (e) {
-      print('Error muting device: ${e.message}');
+  Future<void> _mute() async {
+  try {
+    final result = await platform.invokeMethod('muteAudio');
+    print('Mute result: $result');
+    
+    setState(() => _muted = true);
+    
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('🔇 Muted'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  } on PlatformException catch (e) {
+    print('Mute error: ${e.code} - ${e.message}');
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Mute error: ${e.message}')),
+      );
     }
   }
+}
 
-  // Unmute device
-  Future<void> _unmuteDevice() async {
-    try {
-      await platform.invokeMethod('unmuteAudio');
-      setState(() => _isMuted = false);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('🔊 Device Unmuted'),
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
-    } on PlatformException catch (e) {
-      print('Error unmuting device: ${e.message}');
+Future<void> _unmute() async {
+  try {
+    final result = await platform.invokeMethod('unmuteAudio');
+    print('Unmute result: $result');
+    
+    setState(() => _muted = false);
+    
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('🔊 Unmuted'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  } on PlatformException catch (e) {
+    print('Unmute error: ${e.code} - ${e.message}');
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unmute error: ${e.message}')),
+      );
     }
   }
+}
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Press Me App"),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Center(
-              child: Text(
-                'Hi, $_userName! 👋',
-                style: const TextStyle(fontSize: 16),
-              ),
-            ),
-          ),
-        ],
+        title: const Text('Press Me App'),
+        elevation: 0,
       ),
       body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // 🌍 Global likes counter
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.blue.shade100,
-                borderRadius: BorderRadius.circular(15),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                'Hi, $_userName! 👋',
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
-              child: Column(
-                children: [
-                  const Text(
-                    '🌍 Global Likes',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+              const SizedBox(height: 40),
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade100,
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: Column(
+                  children: [
+                    const Text('🌍 Global Likes'),
+                    Text(
+                      '$_totalLikes',
+                      style: const TextStyle(
+                        fontSize: 48,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 30),
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade100,
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: Column(
+                  children: [
+                    const Text('👤 Your Likes'),
+                    Text(
+                      '$_userLikes',
+                      style: const TextStyle(
+                        fontSize: 48,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 40),
+              ElevatedButton.icon(
+                onPressed: _addLike,
+                icon: const Icon(Icons.thumb_up),
+                label: const Text('Press me'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 40,
+                    vertical: 15,
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '$_totalLikes',
-                    style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold),
+                ),
+              ),
+              const SizedBox(height: 40),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: _muted ? null : _mute,
+                    icon: const Icon(Icons.volume_off),
+                    label: const Text('Mute'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _muted ? Colors.grey : Colors.red,
+                    ),
+                  ),
+                  const SizedBox(width: 20),
+                  ElevatedButton.icon(
+                    onPressed: _muted ? _unmute : null,
+                    icon: const Icon(Icons.volume_up),
+                    label: const Text('Unmute'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _muted ? Colors.green : Colors.grey,
+                    ),
                   ),
                 ],
               ),
-            ),
-
-            const SizedBox(height: 30),
-
-            // 👤 User likes counter
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.green.shade100,
-                borderRadius: BorderRadius.circular(15),
-              ),
-              child: Column(
-                children: [
-                  const Text(
-                    '👤 Your Likes',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '$_userLikes',
-                    style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 40),
-
-            // Press me button
-            ElevatedButton.icon(
-              onPressed: _incrementLikes,
-              icon: const Icon(Icons.thumb_up),
-              label: const Text("Press me"),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
-                backgroundColor: Colors.blue,
-              ),
-            ),
-
-            const SizedBox(height: 40),
-
-            // Mute and Unmute buttons
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                ElevatedButton.icon(
-                  onPressed: _isMuted ? null : _muteDevice,
-                  icon: const Icon(Icons.volume_off),
-                  label: const Text("Mute"),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _isMuted ? Colors.grey : Colors.red,
-                  ),
-                ),
-                const SizedBox(width: 20),
-                ElevatedButton.icon(
-                  onPressed: _isMuted ? _unmuteDevice : null,
-                  icon: const Icon(Icons.volume_up),
-                  label: const Text("Unmute"),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _isMuted ? Colors.green : Colors.grey,
-                  ),
-                ),
-              ],
-            ),
-
-            // Status indicator
-            const SizedBox(height: 20),
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: _isMuted ? Colors.red.shade100 : Colors.green.shade100,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                _isMuted ? '🔇 Device is MUTED' : '🔊 Device is UNMUTED',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: _isMuted ? Colors.red : Colors.green,
-                ),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

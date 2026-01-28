@@ -2,13 +2,15 @@ package com.example.press_me_app
 
 import android.content.Context
 import android.media.AudioManager
-import android.media.RingerMode
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity: FlutterActivity() {
     private val CHANNEL = "com.example.press_me_app/audio"
+    private var savedMusicVolume = 0
+    private var savedNotificationVolume = 0
+    private var savedRingVolume = 0
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -16,12 +18,20 @@ class MainActivity: FlutterActivity() {
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
                 "muteAudio" -> {
-                    muteDevice()
-                    result.success(null)
+                    try {
+                        muteDevice()
+                        result.success("Device muted")
+                    } catch (e: Exception) {
+                        result.error("MUTE_ERROR", e.message, null)
+                    }
                 }
                 "unmuteAudio" -> {
-                    unmuteDevice()
-                    result.success(null)
+                    try {
+                        unmuteDevice()
+                        result.success("Device unmuted")
+                    } catch (e: Exception) {
+                        result.error("UNMUTE_ERROR", e.message, null)
+                    }
                 }
                 else -> result.notImplemented()
             }
@@ -31,25 +41,27 @@ class MainActivity: FlutterActivity() {
     private fun muteDevice() {
         val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
         
-        // Mute all streams
+        // Save current volumes BEFORE muting
+        savedMusicVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+        savedNotificationVolume = audioManager.getStreamVolume(AudioManager.STREAM_NOTIFICATION)
+        savedRingVolume = audioManager.getStreamVolume(AudioManager.STREAM_RING)
+        
+        println("MUTE - Saved volumes: Music=$savedMusicVolume, Notification=$savedNotificationVolume, Ring=$savedRingVolume")
+        
+        // Mute all streams (NO DND changes)
         audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, 0, 0)
         audioManager.setStreamVolume(AudioManager.STREAM_NOTIFICATION, 0, 0)
         audioManager.setStreamVolume(AudioManager.STREAM_RING, 0, 0)
-        
-        // Set to SILENT mode (no vibration)
-        audioManager.ringerMode = AudioManager.RINGER_MODE_SILENT
     }
 
     private fun unmuteDevice() {
         val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
-        val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
         
-        // Restore volume
-        audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, maxVolume / 2, 0)
-        audioManager.setStreamVolume(AudioManager.STREAM_NOTIFICATION, maxVolume / 2, 0)
-        audioManager.setStreamVolume(AudioManager.STREAM_RING, maxVolume / 2, 0)
+        println("UNMUTE - Restoring volumes: Music=$savedMusicVolume, Notification=$savedNotificationVolume, Ring=$savedRingVolume")
         
-        // Set back to NORMAL mode
-        audioManager.ringerMode = AudioManager.RINGER_MODE_NORMAL
+        // Restore volumes
+        audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, savedMusicVolume, 0)
+        audioManager.setStreamVolume(AudioManager.STREAM_NOTIFICATION, savedNotificationVolume, 0)
+        audioManager.setStreamVolume(AudioManager.STREAM_RING, savedRingVolume, 0)
     }
 }
