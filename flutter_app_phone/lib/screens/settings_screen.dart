@@ -3,6 +3,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../services/firebase_service.dart';
 import '../services/location_service.dart';
 import '../services/prayer_times_service.dart';
+import '../services/prayer_alarm_service.dart';  // Add this!
+
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -34,12 +36,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _prayerTimes = times;
           _errorMessage = null;
         });
+        _startMonitoring();  // ← ADD THIS LINE
       }
     } catch (e) {
       setState(() => _errorMessage = 'Error loading prayer times');
     }
   }
 
+  /// Start monitoring prayer times
+void _startMonitoring() {
+  if (_prayerTimes != null) {
+    PrayerAlarmService.startMonitoring(
+      prayerTimes: _prayerTimes!,
+      onPrayerTime: () {
+        // Auto-mute
+        PrayerAlarmService.autoMute();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('🤐 Auto-muted for prayer time'),
+              duration: Duration(seconds: 3),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      },
+    );
+  }
+}
   /// Fetch prayer times from location
   Future<void> _fetchPrayerTimesFromLocation() async {
     setState(() {
@@ -78,6 +102,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _prayerTimes = times;
         _loading = false;
       });
+      _startMonitoring();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -94,6 +119,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
       });
     }
   }
+
+  @override
+void dispose() {
+  PrayerAlarmService.stopMonitoring();
+  super.dispose();
+}
 
   @override
   Widget build(BuildContext context) {
