@@ -156,4 +156,49 @@ Future<void> signInAnonymously() async {
       }
     });
   }
+  Future<void> savePrayerTimes({
+  required String userId,
+  required double latitude,
+  required double longitude,
+  required Map<String, String> prayerTimes,
+}) async {
+  try {
+    await FirebaseDatabase.instance
+        .ref('users/$userId/prayerTimes')
+        .set({
+      'latitude': latitude,
+      'longitude': longitude,
+      'fajr': prayerTimes['fajr'],
+      'dhuhr': prayerTimes['dhuhr'],
+      'asr': prayerTimes['asr'],
+      'maghrib': prayerTimes['maghrib'],
+      'isha': prayerTimes['isha'],
+      'updatedAt': DateTime.now().toIso8601String(),
+    });
+  } catch (e) {
+    throw Exception('Error saving prayer times: $e');
+  }
+}
+
+Future<Map<String, String>?> getPrayerTimes(String userId) async {
+  try {
+    final snapshot = await FirebaseDatabase.instance
+        .ref('users/$userId/prayerTimes')
+        .get();
+
+    if (snapshot.exists) {
+      final data = snapshot.value as Map;
+      return {
+        'fajr': data['fajr'] ?? '',
+        'dhuhr': data['dhuhr'] ?? '',
+        'asr': data['asr'] ?? '',
+        'maghrib': data['maghrib'] ?? '',
+        'isha': data['isha'] ?? '',
+      };
+    }
+    return null;
+  } catch (e) {
+    throw Exception('Error getting prayer times: $e');
+  }
+}
 }

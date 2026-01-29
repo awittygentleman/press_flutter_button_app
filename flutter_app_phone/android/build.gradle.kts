@@ -25,7 +25,6 @@ subprojects {
     val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
     project.layout.buildDirectory.value(newSubprojectBuildDir)
     
-    // Add this to suppress warnings
     tasks.withType<JavaCompile> {
         options.compilerArgs.addAll(listOf("-Xlint:-options"))
     }

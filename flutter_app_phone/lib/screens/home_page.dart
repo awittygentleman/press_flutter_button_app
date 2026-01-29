@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/firebase_service.dart';
 import 'package:permission_handler/permission_handler.dart';  // Add this!
+import 'settings_screen.dart';
 
 
 class HomePage extends StatefulWidget {
@@ -145,6 +146,17 @@ Future<void> _unmute() async {
       appBar: AppBar(
         title: const Text('Press Me App'),
         elevation: 0,
+        actions: [
+    IconButton(
+      icon: const Icon(Icons.settings),
+      onPressed: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const SettingsScreen()),
+        );
+      },
+    ),
+  ],
       ),
       body: Center(
         child: SingleChildScrollView(
